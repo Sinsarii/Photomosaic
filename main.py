@@ -7,14 +7,14 @@ from PIL import Image, ImageEnhance, ImageFilter, ImageDraw
 
 
 def main():
-    im = Image.open("base.png", 'r')
+    im = Image.open("base.png")
     # Use a breakpoint in the code line below to debug your script.
     print('Testing Begin')  # Press Ctrl+F8 to toggle the breakpoint.
 
     # merge_image(im)
     im_array = load_image_into_array(im)
-    # calculate_block_average_color(im_array, im.height, im.width)
-    convert_matrix_into_strip(im_array, 0, 0, 50, 50)
+    im_width, im_height = im.size
+    calculate_block_average_color(im_array, im_width, im_height)
 
 
 def load_image():
@@ -65,12 +65,28 @@ def load_image_into_array(image):
     return image_array
 
 
-def find_average_color(image_array, corner_x, corner_y, block_width, block_height):
+def get_image_block(pixel_matrix, corner_x, corner_y, block_size):
+    opposite_corner = (corner_x + block_size, corner_y + block_size)
+    block_rows = pixel_matrix[corner_x:opposite_corner[0]]
+    block = []
+    for row in block_rows:
+        block.append(row[corner_y:opposite_corner[1]])
+    return block
+
+
+def process_image_block(source_image, x, y, block_width, block_height, r, g, b):
+    box = (x, y, block_width, block_height)
+    region = source_image.crop(box)
+    region = region.color
+    avg_color_block = Image.new(mode="RGB", size=(block_width, block_height), color=(r, g, b))
+
+
+def find_average_color(image_array):
     red_list = []
     green_list = []
     blue_list = []
-    for x in range(corner_x, corner_x + block_width):
-        for y in range(corner_y, corner_y + block_height):
+    for x in range(0, len(image_array) - 1):
+        for y in range(0, len(image_array) - 1):
             red_list.append(image_array[x][y][0])
             green_list.append(image_array[x][y][1])
             blue_list.append(image_array[x][y][2])
@@ -93,7 +109,10 @@ def calculate_block_average_color(image_array, image_height, image_width):
     for row in range(0, image_width - 1, block_height):
         # divide by floor height to put into right array to add them all
         for col in range(0, image_height - 1, block_width):
-            print(image_array[row][col])
+            if row <= image_width & col <= image_height:
+                block = get_image_block(image_array, row, col, block_width)
+                find_average_color(block)
+            # print(image_array[row][col])
 
             # add the amount to total
 
