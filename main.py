@@ -2,8 +2,13 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 # Load PILLOW
 
-import os, sys, numpy
+import os, sys, numpy, math
 from PIL import Image, ImageEnhance, ImageFilter, ImageDraw
+from numpy import asarray
+
+IMAGE_LIBRARY_FOLDER = "images/source_library/"
+SOURCE_CROPPED_LIBRARY = "images/source_cropped/"
+OUTPUT_IMAGE_LIBRARY = "images/output/"
 
 
 def main():
@@ -61,11 +66,12 @@ def rotate_image_upside_down(image):
 
 def load_image_into_array(image):
     # load image into array
-    #image_array = numpy.array(image)
+    image_array = numpy.array(image)
+    # image_array = numpy.asarray(image)
     # image_array = list(image.getdata())
-    im_array = list(image.getdata())
-    return [im_array[i:i + image.width] for i in range(0, len(im_array), image.width)]
-    # return image_array
+    # im_array = list(image.getdata())
+    # return [im_array[i:i + image.width] for i in range(0, len(im_array), image.width)]
+    return image_array
 
 
 def get_image_block(pixel_matrix, corner, block_size):
@@ -77,75 +83,64 @@ def get_image_block(pixel_matrix, corner, block_size):
     return block
 
 
-def process_image_block(source_image, x, y, block_width, block_height, r, g, b):
-    box = (x, y, block_width, block_height)
-    region = source_image.crop(box)
-    region = region.fill()
-    avg_color_block = Image.new(mode="RGB", size=(block_width, block_height), color=(r, g, b))
+def crop_image(source_image):
+    # crop the image
+    im_width, im_height = source_image.size
+    square_size = min([im_width, im_height])
+    crop_box = (0, 0, square_size, square_size)
+    region = source_image.crop(crop_box)
+    cropped_image = Image.new('RGB', (square_size, square_size), (255, 255, 255, 0))
+    cropped_image.paste(region, crop_box)
+    return cropped_image
 
 
-def mean_rgb(pixels):
-    """Calculates the mean RGB value of the given pixel
-    matrix.
-    Args:
-    pixels -- a 2-D pixel matrix
-    Returns:
-    A 3-tuple of the average RGB value of the matrix
-    """
-    r_total = 0
-    g_total = 0
-    b_total = 0
-    n_pixels = 0
-    for row in pixels:
-        for p in row:
-            r_total += p[0]
-            g_total += p[1]
-            b_total += p[2]
+def save_image(image, image_name, directory):
+    image.save(directory + image_name + ',png')
 
-            n_pixels += 1
+def find_closes_matching_image_to_color(block_color, image_directory):
+    color_distance = 255
 
-    return int(round(r_total / n_pixels)), int(round(g_total / n_pixels)), int(round(b_total / n_pixels))
+    for image in image_directory:
+        cropped_image_array = load_image_into_array(image)
+        average_color_cropped = find_average_color(cropped_image_array)
 
 
-def get_image_square(pixels, corner, size):
-    """Returns a square sub-section of the `pixels` matrix,
-    with top-left corner at `corner`, and each side of the
-    square `size` pixels in length.
-    Args:
-    pixels -- the pixels matrix of the entire image
-    corner -- the top-left corner of the sub-section
-    size -- the size of each side of the sub-section
-    Returns:
-    A pixel matrix of a sub-section of the original matrix
-    """
-    opposite_corner = (corner[0]+size, corner[1]+size)
+def find_color_distance(color_base, color_cropped):
+    distance = math.sqrt((color_base[0] - color_cropped[0])^2 + (color_base[1] - color_cropped[1])^2 + (color_base[2] - color_cropped[2])^2)
+    return distance
 
-    square_rows = pixels[corner[0]:opposite_corner[0]]
-    square = []
-    for row in square_rows:
-        square.append(row[corner[1]:opposite_corner[1]])
-
-    return square
 
 
 def find_average_color(image_array):
-    red_list = []
-    green_list = []
-    blue_list = []
-    for x in range(0, len(image_array) - 1):
-        for y in range(0, len(image_array) - 1):
-            red_list.append(image_array[x][y][0])
-            green_list.append(image_array[x][y][1])
-            blue_list.append(image_array[x][y][2])
-    r = int(round(sum(red_list) / len(red_list)))
-    g = int(round(sum(green_list) / len(green_list)))
-    b = int(round(sum(blue_list) / len(blue_list)))
+    r_total = 0
+    g_total = 0
+    b_total = 0
+    pixel_number_total = 0
+    # for x in range(0, len(image_array) - 1):
+    #    for y in range(0, len(image_array) - 1):
+    #        red_list.append(image_array[x][y][0])
+    #        green_list.append(image_array[x][y][1])
+    #        blue_list.append(image_array[x][y][2])
+    for row in image_array:
+        for color_tuple in row:
+            r_total += color_tuple[0]
+            g_total += color_tuple[1]
+            b_total += color_tuple[2]
+            pixel_number_total += 1
 
-    print(r)
-    print(g)
-    print(b)
+    # r = int(round(sum(red_list) / len(red_list)))
+    # g = int(round(sum(green_list) / len(green_list)))
+    # b = int(round(sum(blue_list) / len(blue_list)))
+    r_average = int(round(r_total / pixel_number_total))
+    g_average = int(round(g_total / pixel_number_total))
+    b_average = int(round(b_total / pixel_number_total))
 
-    return r, g, b
+    # print(r)
+    # print(g)
+    # print(b)
+
+    # return r, g, b
+    return r_average, g_average, b_average
 
 
 def color_block(color, new_image, x, y, block_width, block_height):
@@ -157,8 +152,8 @@ def calculate_block_average_color(image_array, image_width, image_height):
     # for the size of the image, iterate and grab every tuple into two dimensional array
     output_image = Image.new('RGB', (image_width, image_height), (255, 255, 255, 0))
     block_array = []
-    block_width = 100
-    block_height = 100
+    block_width = 300
+    block_height = 300
     total = 0
     # divide by floor length to put into array and add them all
     draw = ImageDraw.Draw(output_image)
@@ -168,14 +163,14 @@ def calculate_block_average_color(image_array, image_width, image_height):
         for col in range(0, image_height - 1, block_height):
             # print("Row #" + str(row))
             # print("Col #" + str(col))
-            block = get_image_block(image_array, (row, col), block_width)
+            block = get_image_block(image_array, (col, row), block_width)
             # block = get_image_square(image_array, (row, col), block_width)
             average_color = find_average_color(block)
             # average_color = mean_rgb(block)
-            #draw needs to be x0,y0, x0+width, y0+ height
+            # draw needs to be x0,y0, x0+width, y0+ height
             draw.rectangle((row, col, row + block_width, col + block_height),
                            fill=(average_color[0], average_color[1], average_color[2]))
-            # output_image.show()
+            output_image.show()
         # print(image_array[row][col])
 
         # add the amount to total
