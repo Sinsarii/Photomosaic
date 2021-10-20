@@ -12,15 +12,13 @@ OUTPUT_IMAGE_LIBRARY = "images/output/"
 
 
 def main():
-    im = Image.open("base.png")
+    # im = Image.open("base.png")
     # Use a breakpoint in the code line below to debug your script.
-    print('Testing Begin')  # Press Ctrl+F8 to toggle the breakpoint.
-
-    # merge_image(im)
-    im_array = load_image_into_array(im)
-
-    im_width, im_height = im.size
-    calculate_block_average_color(im_array, im_width, im_height)
+    # print('Testing Begin')  # Press Ctrl+F8 to toggle the breakpoint.
+    # im_array = load_image_into_array(im)
+    # im_width, im_height = im.size
+    # calculate_block_average_color(im_array, im_width, im_height)
+    prepare_collage_images()
 
 
 def load_image():
@@ -94,21 +92,33 @@ def crop_image(source_image):
     return cropped_image
 
 
+def prepare_collage_images():
+    for image in os.listdir(IMAGE_LIBRARY_FOLDER):
+        cropped_image = crop_image(Image.open(IMAGE_LIBRARY_FOLDER + image))
+        save_image(cropped_image, image, SOURCE_CROPPED_LIBRARY)
+
+
 def save_image(image, image_name, directory):
-    image.save(directory + image_name + ',png')
+    image.save(directory + image_name + '.png')
+
 
 def find_closes_matching_image_to_color(block_color, image_directory):
     color_distance = 255
-
+    target_image = ""
     for image in image_directory:
         cropped_image_array = load_image_into_array(image)
         average_color_cropped = find_average_color(cropped_image_array)
+        compared_color_distance = find_color_distance(block_color, average_color_cropped)
+        if compared_color_distance < color_distance:
+            color_distance = compared_color_distance
+            target_image = image
+    return image
 
 
 def find_color_distance(color_base, color_cropped):
-    distance = math.sqrt((color_base[0] - color_cropped[0])^2 + (color_base[1] - color_cropped[1])^2 + (color_base[2] - color_cropped[2])^2)
+    distance = math.sqrt(((color_base[0] - color_cropped[0]) ^ 2) + ((color_base[1] - color_cropped[1]) ^ 2) + (
+            (color_base[2] - color_cropped[2]) ^ 2))
     return distance
-
 
 
 def find_average_color(image_array):
