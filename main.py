@@ -2,7 +2,7 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 # Load PILLOW
 
-import os, sys, numpy, math
+import os, sys, numpy, math, PIL
 from PIL import Image, ImageEnhance, ImageFilter, ImageDraw
 from numpy import asarray
 
@@ -12,13 +12,14 @@ OUTPUT_IMAGE_LIBRARY = "images/output/"
 
 
 def main():
-    # im = Image.open("base.png")
+    prepare_collage_images(200)
+    im = Image.open("base.png")
     # Use a breakpoint in the code line below to debug your script.
     # print('Testing Begin')  # Press Ctrl+F8 to toggle the breakpoint.
-    # im_array = load_image_into_array(im)
-    # im_width, im_height = im.size
-    # calculate_block_average_color(im_array, im_width, im_height)
-    prepare_collage_images()
+    im_array = load_image_into_array(im)
+    im_width, im_height = im.size
+    calculate_block_average_color(im_array, im_width, im_height)
+    # test = find_closes_matching_image_to_color([11, 100 , 90], SOURCE_CROPPED_LIBRARY)
 
 
 def load_image():
@@ -92,32 +93,40 @@ def crop_image(source_image):
     return cropped_image
 
 
-def prepare_collage_images():
+def resize_image(source_image, block_size):
+    resized_image = source_image.resize((block_size, block_size))
+    return resized_image
+
+
+def prepare_collage_images(block_size):
     for image in os.listdir(IMAGE_LIBRARY_FOLDER):
-        cropped_image = crop_image(Image.open(IMAGE_LIBRARY_FOLDER + image))
-        save_image(cropped_image, image, SOURCE_CROPPED_LIBRARY)
+        source_image = Image.open(IMAGE_LIBRARY_FOLDER + image)
+        cropped_image = crop_image(source_image)
+        resize_imaged = resize_image(cropped_image, block_size)
+        save_image(resize_imaged, image, SOURCE_CROPPED_LIBRARY)
 
 
 def save_image(image, image_name, directory):
-    image.save(directory + image_name + '.png')
+    image.save(directory + image_name)
 
 
 def find_closes_matching_image_to_color(block_color, image_directory):
     color_distance = 255
     target_image = ""
-    for image in image_directory:
-        cropped_image_array = load_image_into_array(image)
+    for image in os.listdir(image_directory):
+        loaded_image = Image.open(image_directory + image)
+        cropped_image_array = load_image_into_array(loaded_image)
         average_color_cropped = find_average_color(cropped_image_array)
         compared_color_distance = find_color_distance(block_color, average_color_cropped)
         if compared_color_distance < color_distance:
             color_distance = compared_color_distance
             target_image = image
-    return image
+    return target_image
 
 
 def find_color_distance(color_base, color_cropped):
-    distance = math.sqrt(((color_base[0] - color_cropped[0]) ^ 2) + ((color_base[1] - color_cropped[1]) ^ 2) + (
-            (color_base[2] - color_cropped[2]) ^ 2))
+    distance = math.sqrt(((color_base[0] - color_cropped[0]) ** 2) + ((color_base[1] - color_cropped[1]) ** 2) + (
+            (color_base[2] - color_cropped[2]) ** 2))
     return distance
 
 
@@ -162,8 +171,8 @@ def calculate_block_average_color(image_array, image_width, image_height):
     # for the size of the image, iterate and grab every tuple into two dimensional array
     output_image = Image.new('RGB', (image_width, image_height), (255, 255, 255, 0))
     block_array = []
-    block_width = 300
-    block_height = 300
+    block_width = 200
+    block_height = 200
     total = 0
     # divide by floor length to put into array and add them all
     draw = ImageDraw.Draw(output_image)
@@ -178,8 +187,11 @@ def calculate_block_average_color(image_array, image_width, image_height):
             average_color = find_average_color(block)
             # average_color = mean_rgb(block)
             # draw needs to be x0,y0, x0+width, y0+ height
-            draw.rectangle((row, col, row + block_width, col + block_height),
-                           fill=(average_color[0], average_color[1], average_color[2]))
+
+            matching_image = find_closes_matching_image_to_color(average_color, SOURCE_CROPPED_LIBRARY)
+            block_image = Image.open(SOURCE_CROPPED_LIBRARY + matching_image)
+            output_image.paste(block_image, (row, col))
+            # draw.rectangle((row, col, row + block_width, col + block_height), fill=(average_color[0], average_color[1], average_color[2]))
             output_image.show()
         # print(image_array[row][col])
 
