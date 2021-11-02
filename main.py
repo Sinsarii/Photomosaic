@@ -9,14 +9,17 @@ from numpy import asarray
 IMAGE_LIBRARY_FOLDER = "images/source_library/"
 SOURCE_CROPPED_LIBRARY = "images/source_cropped/"
 OUTPUT_IMAGE_LIBRARY = "images/output/"
+INPUT_IMAGE_LIBRARY = "images/input/"
 
 
 def main():
     block_size = 200
-    prepare_collage_images(block_size)
     im = Image.open("base.png")
+
+    prepare_collage_images(block_size)
     im_array = load_image_into_array(im)
     im_width, im_height = im.size
+
     calculate_block_average_color(im_array, im_width, im_height, block_size)
 
 
@@ -31,40 +34,9 @@ def print_image(image):
     image.show()
 
 
-def enhance_image(image):
-    print('Testing enhance image')
-    enh = ImageEnhance.Contrast(image)
-    enh.enhance(1.3)
-    return enh
-
-
-def filter_image(image):
-    image = image.filter(ImageFilter.GaussianBlur)
-    return image
-
-
-def merge_image(image):
-    final_image = Image.merge(image.mode, image)
-    final_image.show()
-
-
-def shrink_image_by_half(image):
-    with image as im:
-        (width, height) = (im.width // 2, im.height // 2)
-        im_resized = im.resize((width, height))
-    return im_resized
-
-
-def rotate_image_upside_down(image):
-    theta = 180
-    im_rotated = image.rotate(angle=theta)
-    return im_rotated
-
-
 def load_image_into_array(image):
     # load image into array
     image_array = numpy.array(image)
-    # image_array = numpy.asarray(image)
     return image_array
 
 
@@ -109,8 +81,8 @@ def find_closes_matching_image_to_color(block_color, image_directory):
     color_distance = 255
     target_image = ""
     for image in os.listdir(image_directory):
-        loaded_image = Image.open(image_directory + image)
-        cropped_image_array = load_image_into_array(loaded_image)
+        cropped_image = Image.open(image_directory + image)
+        cropped_image_array = load_image_into_array(cropped_image)
         average_color_cropped = find_average_color(cropped_image_array)
         compared_color_distance = find_color_distance(block_color, average_color_cropped)
         if compared_color_distance < color_distance:
@@ -147,6 +119,7 @@ def find_average_color(image_array):
 
 def color_block(color, new_image, x, y, block_width, block_height):
     draw = ImageDraw.Draw(new_image)
+    # draw needs to be x0,y0, x0+width, y0+ height
     draw.rectangle((x, y, block_width, block_height), fill=(color[0], color[1], color[2]))
 
 
@@ -165,13 +138,7 @@ def calculate_block_average_color(image_array, image_width, image_height, block_
             matching_image = find_closes_matching_image_to_color(average_color, SOURCE_CROPPED_LIBRARY)
             block_image = Image.open(SOURCE_CROPPED_LIBRARY + matching_image)
             output_image.paste(block_image, (row, col))
-
-            # draw needs to be x0,y0, x0+width, y0+ height
-            # draw.rectangle((row, col, row + block_width, col + block_height), fill=(average_color[0], average_color[1], average_color[2]))
             output_image.show()
-        # print(image_array[row][col])
-
-    # for the amount of blocks in the image, calculate the average R,G,B of the block size
     output_image.show()
 
 
