@@ -2,9 +2,12 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 # Load PILLOW
 
-import os, sys, numpy, math, PIL
-from PIL import Image, ImageEnhance, ImageFilter, ImageDraw
-from numpy import asarray
+import math
+import numpy
+import os
+import json
+
+from PIL import Image, ImageDraw
 
 IMAGE_LIBRARY_FOLDER = "images/source_library/"
 SOURCE_CROPPED_LIBRARY = "images/source_cropped/"
@@ -21,6 +24,19 @@ def main():
     im_width, im_height = im.size
 
     calculate_block_average_color(im_array, im_width, im_height, block_size)
+
+
+def cache_image_data(image, average_color):
+    CACHED_IMAGE_DATA = {}
+    try:
+        with open('cache.json') as json_file:
+            CACHED_IMAGE_DATA = json.load(json_file)
+            CACHED_IMAGE_DATA[image] = average_color
+    except OSError:
+        CACHED_IMAGE_DATA[image] = average_color
+    with open('cache.json', 'w') as out_file:
+        json.dump(CACHED_IMAGE_DATA, out_file)
+
 
 
 def load_image():
@@ -84,6 +100,7 @@ def find_closes_matching_image_to_color(block_color, image_directory):
         cropped_image = Image.open(image_directory + image)
         cropped_image_array = load_image_into_array(cropped_image)
         average_color_cropped = find_average_color(cropped_image_array)
+        cache_image_data(image, average_color_cropped)
         compared_color_distance = find_color_distance(block_color, average_color_cropped)
         if compared_color_distance < color_distance:
             color_distance = compared_color_distance
